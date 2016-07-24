@@ -341,8 +341,9 @@ router.get('/api/db', function(req, res) {
         mySqlConnection.query('SHOW DATABASES', function(err, rows) {
           if (err){
             res.status(200).json({ error: 'Error while listing DBs: ' + err });
+          }else{
+        	  res.status(200).json({ rows: rows });
           }
-          res.status(200).json({ rows: rows });
         });
     }catch(ex){
         res.status(200).json({ err: ex });
