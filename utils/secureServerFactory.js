@@ -4,18 +4,20 @@
 var SecureServerFactory = {};
 SecureServerFactory.fs = null;
 SecureServerFactory.https = null;
-SecureServerFactory.router = router;
-SecureServerFactory.logger = router;
+SecureServerFactory.router = null;
+SecureServerFactory.logger = null;
 
-ApiRoot.init = function(data){
-    SecureServerFactory.logger.log("ApiRoot - starting...");
+SecureServerFactory.init = function(data){
+    
     SecureServerFactory.https = data.https;
     SecureServerFactory.router = data.router;
     SecureServerFactory.fs = data.fs;
     SecureServerFactory.logger = data.logger;
+    SecureServerFactory.logger.log("SecureServerFactory - starting...");
+    //https:https, router:router, fs:fs, logger:logger
 };
 
-function getSecureServer(sslKeyFile, sslDomainCertFile, sslCaBundleFile){
+SecureServerFactory.getSecureServer = function(sslKeyFile, sslDomainCertFile, sslCaBundleFile){
 	try {
 
 		var certFileEncoding = 'utf8';
@@ -60,14 +62,13 @@ function getSecureServer(sslKeyFile, sslDomainCertFile, sslCaBundleFile){
 				ssl.ca = ca;
 			}
 
-			secureServer = SecureServerFactory.https.createServer(ssl, router);
+			var secureServer = SecureServerFactory.https.createServer(ssl, SecureServerFactory.router);
 			SecureServerFactory.logger.log('secureServer created');
 			
 			return secureServer;
 		}
 
 	} catch (err) {
-		secureServerErr = "Err1: " + err;
 		SecureServerFactory.logger.log('Error creating https server: ' + err);
 	}
 	
@@ -76,6 +77,7 @@ function getSecureServer(sslKeyFile, sslDomainCertFile, sslCaBundleFile){
 
 
 try {
+	exports.init = SecureServerFactory.init;
     exports.getSecureServer = SecureServerFactory.getSecureServer;
 }
 catch(err) {

@@ -21,6 +21,11 @@ var express = require('express');
 var router = express();
 var bodyParser = require('body-parser');
 
+router.use(bodyParser.urlencoded({
+	extended : true
+}));
+router.use(bodyParser.json());
+
 var server = null;
 var secureServer = null;
 var secureServerErr = null;
@@ -45,33 +50,28 @@ if (useHttpsTemp !== undefined && useHttpsTemp != null
 }
 
 if (useHttps === true && https != null) {
-	try {
-		
-		var sslKeyFile = process.env.sslKeyFile || './ssl/domain-key.pem';
-		logger.log('sslKeyFile: ' + sslKeyFile);
+	
+	var sslKeyFile = process.env.sslKeyFile || './ssl/domain-key.pem';
+	logger.log('sslKeyFile: ' + sslKeyFile);
 
-		var sslDomainCertFile = process.env.sslDomainCertFile
-				|| './ssl/domain.org.crt';
-		logger.log('sslDomainCertFile: ' + sslDomainCertFile);
+	var sslDomainCertFile = process.env.sslDomainCertFile || './ssl/domain.org.crt';
+	logger.log('sslDomainCertFile: ' + sslDomainCertFile);
 
-		var sslCaBundleFile = process.env.ssCaBundleFile || './ssl/bundle.crt';
-		logger.log('sslCaBundleFile: ' + sslCaBundleFile);
+	var sslCaBundleFile = process.env.ssCaBundleFile || './ssl/bundle.crt';
+	logger.log('sslCaBundleFile: ' + sslCaBundleFile);
 
-		var certFileEncoding = 'utf8';
+	var certFileEncoding = 'utf8';
 
-		if (fs.existsSync(sslKeyFile) === false) {
-			logger.log('sslKeyFile  was not found!');
-		} else if (fs.existsSync(sslDomainCertFile) === false) {
-			logger.log('sslDomainCertFile  was not found!');
-		} else {
-			var secureServerFactory = require('./utils/secureServerFactory.js');
-			secureServerFactory.init({https:https, router:router, fs:fs, logger:logger})
-			secureServer = secureServerFactory.getSecureServer(); 
-		}
-
-	} catch (err) {
-		secureServerErr = "Err1: " + err;
-		logger.log('Error creating https server: ' + err);
+	if (fs.existsSync(sslKeyFile) === false) {
+		logger.log('sslKeyFile  was not found!');
+	} else if (fs.existsSync(sslDomainCertFile) === false) {
+		logger.log('sslDomainCertFile  was not found!');
+	} else if (fs.existsSync(sslCaBundleFile) === false) {
+		logger.log('sslCaBundleFile  was not found!');
+	} else {
+		var secureServerFactory = require('./utils/secureServerFactory.js');
+		secureServerFactory.init({https:https, router:router, fs:fs, logger:logger})
+		secureServer = secureServerFactory.getSecureServer(sslKeyFile, sslDomainCertFile, sslCaBundleFile); 
 	}
 }
 //////////////////////////
@@ -86,13 +86,8 @@ if (useHttps === true && https != null) {
 logger.logSection('MIDDLEWARE');
 logger.log('publicdir: ' + publicdir);
 
-router.use(bodyParser.urlencoded({
-	extended : true
-}));
-router.use(bodyParser.json());
-
 function requireHTTPS(req, res, next) {
-	if (!req.secure) {
+	if (!req.secure && req.get('host') !== 'localhost') {
 		var redirectUrl = 'https://' + req.get('host') + req.url;
 		logger.log('REDIREC: ' + redirectUrl);
 		return res.redirect(redirectUrl);
