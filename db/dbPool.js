@@ -128,77 +128,102 @@ var loadForeignKeysAsync = function(db, tablesWithNextTables) {
 		return;
 	}
 
-	DbPool.log('loading foreign keys');
 	DbPool.log('loading foreign keys for ' + db.schema + '.' + tablesWithNextTables.value.tableName);
 	
+	
+	var next = function(item, callback){
+		if(item.finalCallback !== undefined){
+			item.finalCallback(db);
+		}else if(item.nextItem != undefined){		
+			callback(db, item.nextItem);
+		}
+	}
+	
+	var columnCount = 0;
+	var columnsWithNoForeignKeyCount = 0;
 	for ( var column in tablesWithNextTables.value.model) {
-
+		columnCount++;
+		
 		if (!tablesWithNextTables.value.model.hasOwnProperty(column)) {
+			DbPool.log('no column error: ' + column);
 			continue;
 		}
 
 		var foreignKey = tablesWithNextTables.value.model[column]['foreignKey'];
-		if (foreignKey !== undefined && foreignKey != null) {
-			DbPool.log('adding foreign key: ' + tablesWithNextTables.value.tableName + '.'
-					+ foreignKey.table + '_id');
-			
-			db.models[tablesWithNextTables.value.tableName].hasOne(foreignKey.table,
-					db.models[foreignKey.table]);
-			
-			
-			DbPool.getConnection(db.schema, function(connection){
-				try{
-					var fkName = 'FK_'+ tablesWithNextTables.value.tableName + '_' + foreignKey.table;
-					
-					var checkForFkStatement = "SELECT COUNT(1) count" + 
-					" FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS " + 
-					" WHERE CONSTRAINT_SCHEMA = '" + db.schema + "' " +
-					" AND CONSTRAINT_NAME = '" + fkName + "'";
-					
-					var foreignKeyTable = foreignKey.table;
-					
-					connection.query(checkForFkStatement, 
-							function(err, rows) {
-					          if (err){
-					        	  DbPool.log('Error while looking for foreign key [' + fkName + ']: ' + err);
-					          }else{
-					        	  if(rows[0].count > 0){
-					        		  DbPool.log('Existing foreign key [' + fkName + '] was found');
-					        	  }else{
-					        		  DbPool.log('Creating foreign key [' + fkName + "]...");
-					        		  
-					        		  var createFkStatement = " ALTER TABLE " + tablesWithNextTables.value.tableName +
-										" ADD foreign key " + fkName + "(" + foreignKeyTable + "_id)" +
-										" REFERENCES " + db.schema + "." + foreignKeyTable + "(id)";
-						        	  
-						        	  connection.query(createFkStatement, 
-											function(err, rows) {
-									          if (err){
-									        	  DbPool.log('Error while listing creating foreign key [' + fkName + ']: ' + err);
-									          }else{
-									        	  DbPool.log('Done creating foreign key [' + fkName + "]");
-									          }
-									        }
-										);
-					        	  }
-					          }
-					        }
-						);
-					
-					
-			    }catch(ex){
-			    	DbPool.log("Error loading foreign keys: " + ex);
-			    }
-			});
-
+		if (foreignKey === undefined || foreignKey === null) {
+			columnsWithNoForeignKeyCount++;
+			continue;
 		}
+
+		DbPool.log('adding foreign key: ' + tablesWithNextTables.value.tableName + '.'
+				+ foreignKey.table + '_id');
+		
+		db.models[tablesWithNextTables.value.tableName].hasOne(foreignKey.table,
+				db.models[foreignKey.table]);
+		
+		
+		DbPool.getConnection(db.schema, function(connection){
+			try{
+				var fkName = 'FK_'+ tablesWithNextTables.value.tableName + '_' + foreignKey.table;
+				
+				var checkForFkStatement = "SELECT COUNT(1) count" + 
+				" FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS " + 
+				" WHERE CONSTRAINT_SCHEMA = '" + db.schema + "' " +
+				" AND CONSTRAINT_NAME = '" + fkName + "'";
+				
+				var foreignKeyTable = foreignKey.table;
+				
+				connection.query(checkForFkStatement, 
+						function(err, rows) {
+				          if (err){
+				        	  DbPool.log('Error while looking for foreign key [' + fkName + ']: ' + err);
+				          }else{
+				        	  if(rows[0].count > 0){
+				        		  DbPool.log('Existing foreign key [' + fkName + '] was found');
+				        	  }else{
+				        		  DbPool.log('Creating foreign key [' + fkName + "]...");
+				        		  
+				        		  var createFkStatement = " ALTER TABLE " + tablesWithNextTables.value.tableName +
+									" ADD foreign key " + fkName + "(" + foreignKeyTable + "_id)" +
+									" REFERENCES " + db.schema + "." + foreignKeyTable + "(id)";
+					        	  
+					        	  connection.query(createFkStatement, 
+										function(err, rows) {
+								          if (err){
+								        	  DbPool.log('Error while listing creating foreign key [' + fkName + ']: ' + err);
+								          }else{
+								        	  DbPool.log('Done creating foreign key [' + fkName + "]");
+								        	  next(tablesWithNextTables, loadForeignKeysAsync);
+								          }
+								        }
+									);
+				        	  }
+				          }
+				        }
+					);
+				
+				
+		    }catch(ex){
+		    	DbPool.log("Error loading foreign keys: " + ex);
+		    }
+		});
+
+	
+	}
+	if(columnCount === columnsWithNoForeignKeyCount){
+		DbPool.log('no foreignKeys found for ' + db.schema + '.' + tablesWithNextTables.value.tableName);
+		next(tablesWithNextTables, loadForeignKeysAsync);
 	}
 	
+	
+	//next(tablesWithNextTables, loadForeignKeysAsync);
+	/*
 	if(tablesWithNextTables.finalCallback !== undefined){
 		tablesWithNextTables.finalCallback(db);
 	}else if(tablesWithNextTables.nextItem != undefined){		
 		loadForeignKeysAsync(db, tablesWithNextTables.nextItem);
 	}
+	*/
 
 }
 

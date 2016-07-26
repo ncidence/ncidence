@@ -92,8 +92,9 @@ ApiRoot.register = function (router) {
 			try{
 				db.query('SHOW TABLES', function(err, rows) {
         			if (err) {
+        				ApiRoot.dbPool.resetSchema(ApiRoot.schema);
         				res.status(200).json({
-        					error : 'Error while listing DBs: ' + err
+        					error : 'Error while listing TABLES: ' + err
         				});
         			} else {
         				res.status(200).json({
