@@ -106,7 +106,7 @@ function interceptApiRequests(req, res, next) {
 	if (req.url !== undefined && req.url !== null && req.url.startsWith('/api/')) {
 		logger.log('API CALL -> HOST: ' + host);
 	}else{
-		logger.log('NON-API CALL -> HOST: ' + req.url);
+		//logger.log('NON-API CALL -> HOST: ' + req.url);
 	}
 
 	next();
