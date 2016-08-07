@@ -1,4 +1,4 @@
-var Group = {tableName:"organization"};
+var Group = {tableName:"group"};
 
 Group.model = {
 	name : {
@@ -10,12 +10,6 @@ Group.model = {
 		type : "text",
 		size : 32,
 		unique : true
-	},
-	thing_id : {
-		type : "integer",
-		foreignKey : {
-			table : "thing"
-		}
 	}
 }
 

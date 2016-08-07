@@ -142,6 +142,16 @@ DbPool.getOrm = function(schema, dropDatabase,  callback) {
 /**
  * DbPool.registerOrm 
  */
+
+function requireFromString(src, filename) {
+	  var m = new module.constructor();
+	  m.paths = module.paths;
+	  m._compile(src, filename);
+	  return m.exports;
+	}
+
+
+	
 DbPool.registerOrm = function(orm) {
 	
 	if(orm.dropDatabase !== undefined && orm.dropDatabase !== null && orm.dropDatabase === true){
@@ -155,6 +165,17 @@ DbPool.registerOrm = function(orm) {
 			var model = entity.define(orm);
 			entities.push(entity);
 		}
+		
+		
+		
+		//test loading modules from string
+		var codeString = 'var Group={tableName:"group"};Group.model={name:{type:"text",size:64,unique:!0},url:{type:"text",size:32,unique:!0}},Group.methods=null,Group.define=function(a){return a.define(Group.tableName,Group.model,Group.methods)};try{exports.tableName=Group.tableName,exports.model=Group.model,exports.methods=Group.methods,exports.define=Group.define}catch(a){}'
+		var entity = requireFromString(codeString, './group.js');
+		console.log('Group: available public functions: '+Object.keys(entity));
+		var model = entity.define(orm);
+		entities.push(entity);
+		
+		
 		
 		DbPool.logger.logSection('DB SYNC');
 		orm.sync(function(err) {
