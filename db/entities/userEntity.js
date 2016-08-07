@@ -2,30 +2,52 @@ var User = {
 	tableName : "user"
 };
 
-/*
- * var User = orm.define("User", { username : { type : "text", size : 20, unique :
- * true }, password : String, salt : String, email : { type : "text", size :
- * 254, unique : true }, isLocked : { type : "boolean", defaultValue : false },
- * loginattemptsSinceLastSuccess : { type : "integer", size : 2, defaultValue :
- * 0 }, lastLoginTime : { type : "date", time : true }, status : { type :
- * "enum", values : [ "User", "Rep", "Admin" ] }, signUpTime : { type : "date",
- * time : true }, lockDate : { type : "date", time : true } }, { methods : {
- * userNameAndEmail : function() { return this.username + ' (' + this.email +
- * ')'; } } });
- */
+
 
 User.model = {
-	username : {
-		type : "text",
-		size : 20,
-		unique : true
-	},
-	organization_id : {
+	username: {
+        type: "text",
+        size: 20,
+        unique: true
+    },
+    password: String,
+    salt: String,
+    email: {
+        type: "text",
+        size: 254,
+        unique: true
+    },
+    organization_id : {
 		type : "integer",
 		foreignKey : {
 			table : 'organization'
 		}
-	}
+	},
+    isLocked: {
+        type: "boolean",
+        defaultValue: false
+    },
+    loginattemptsSinceLastSuccess: {
+        type: "integer",
+        size: 2,
+        defaultValue: 0
+    },
+    lastLoginTime: {
+        type: "date",
+        time: true
+    },
+    status: {
+        type: "enum",
+        values: ["User", "Rep", "Admin"]
+    },
+    signUpTime: {
+        type: "date",
+        time: true
+    },
+    lockDate: {
+        type: "date",
+        time: true
+    }
 }
 
 User.methods = {

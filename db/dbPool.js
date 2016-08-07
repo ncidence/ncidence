@@ -10,6 +10,10 @@ DbPool.logger = null;
 
 DbPool.entities = ['thing','organization','user'];
 
+
+/**
+ * DbPool.init
+ */
 DbPool.init = function(data) {
 	DbPool.host = data.host;
 	DbPool.pw = data.pw;
@@ -19,55 +23,21 @@ DbPool.init = function(data) {
 	DbPool.log("DbPool - starting...");
 };
 
-DbPool.resetSchema = function(schema) {
+
+/**
+ * DbPool.resetSchema
+ */
+DbPool.resetSchema = function(schema, callback) {
 	DbPool.log('resetSchema: ' + schema);
 	DbPool.pool[schema] = null;
 	DbPool.ormPool[schema] = null;
+	callback()
 }
 
-DbPool.getOrm = function(schema, dropDatabase,  callback) {
 
-	if (typeof (DbPool.ormPool[schema]) !== 'undefined'
-			&& DbPool.ormPool[schema] !== undefined
-			&& DbPool.ormPool[schema] !== null) {
-		var db = DbPool.ormPool[schema];
-		callback(db);
-	} else {
-		var mySqlIp = DbPool.host;
-		if (mySqlIp !== null && mySqlIp !== null) {
-			try {
-				var orm = require("orm");
-				DbPool.log('connecting orm: ' + mySqlIp);
-				orm.connect("mysql://root:" + DbPool.pw + "@" + mySqlIp + "/"
-						+ schema, function(err, db) {
-					if (err)
-						throw err;
-					
-					DbPool.log('............................');
-					DbPool.log('orm LOADED for ' + schema + ' schema. ');
-					DbPool.log('............................');
-					
-					db.schema = schema;
-					db.dropDatabase = dropDatabase;
-					DbPool.ormPool[schema] = db;
-					
-					callback(db);
-				});
-
-			} catch (e) {
-				DbPool.log('............................');
-				DbPool.logger
-						.log('FAILED TO LOAD orm schema ' + schema + '.. ');
-				DbPool.log(e);
-				DbPool.log('............................');
-			}
-		} else {
-			DbPool.log('MYSQL_PORT_3306_TCP_ADDR not defined');
-		}
-	}
-
-}
-
+/**
+ * DbPool.getConnection
+ */
 DbPool.getConnection = function(schema, callback) {
 
 	DbPool.log('getting connection: ' + schema);
@@ -121,6 +91,95 @@ DbPool.getConnection = function(schema, callback) {
 
 }
 
+
+/**
+ * DbPool.getOrm 
+ */
+DbPool.getOrm = function(schema, dropDatabase,  callback) {
+
+	if (typeof (DbPool.ormPool[schema]) !== 'undefined'
+			&& DbPool.ormPool[schema] !== undefined
+			&& DbPool.ormPool[schema] !== null) {
+		var db = DbPool.ormPool[schema];
+		callback(db);
+	} else {
+		var mySqlIp = DbPool.host;
+		if (mySqlIp !== null && mySqlIp !== null) {
+			try {
+				var orm = require("orm");
+				DbPool.log('connecting orm: ' + mySqlIp);
+				orm.connect("mysql://root:" + DbPool.pw + "@" + mySqlIp + "/"
+						+ schema, function(err, db) {
+					if (err)
+						throw err;
+					
+					DbPool.log('............................');
+					DbPool.log('orm LOADED for ' + schema + ' schema. ');
+					DbPool.log('............................');
+					
+					db.schema = schema;
+					db.dropDatabase = dropDatabase;
+					DbPool.ormPool[schema] = db;
+					
+					callback(db);
+				});
+
+			} catch (e) {
+				DbPool.log('............................');
+				DbPool.logger
+						.log('FAILED TO LOAD orm schema ' + schema + '.. ');
+				DbPool.log(e);
+				DbPool.log('............................');
+			}
+		} else {
+			DbPool.log('MYSQL_PORT_3306_TCP_ADDR not defined');
+		}
+	}
+
+}
+
+
+/**
+ * DbPool.registerOrm 
+ */
+DbPool.registerOrm = function(orm) {
+	
+	if(orm.dropDatabase !== undefined && orm.dropDatabase !== null && orm.dropDatabase === true){
+		DbPool.dropTables(orm, DbPool.registerOrm);
+	}else{
+		var entities = [];
+		
+		for (var i = 0; i < DbPool.entities.length; i++) {
+			DbPool.log('loading ' + DbPool.entities[i]);
+			var entity = require('./entities/' + DbPool.entities[i] + 'Entity.js');
+			var model = entity.define(orm);
+			entities.push(entity);
+		}
+		
+		DbPool.logger.logSection('DB SYNC');
+		orm.sync(function(err) {
+			if (err) {
+				DbPool.log('DB Sync err: ' + err);
+			} else {
+				
+				var tablesWithNextTables = DbPool.getRepeatedActionMap(entities, function(){DbPool.log('End db sync.');});
+				
+				if(tablesWithNextTables === null){
+					DbPool.log('!tablesWithNextTablesString was null ' + entities.length);
+				}else{
+					loadForeignKeysAsync(orm, tablesWithNextTables);
+				}
+			}
+		});
+	}
+
+
+}
+
+
+/**
+ * loadForeignKeysAsync 
+ */
 var loadForeignKeysAsync = function(db, tablesWithNextTables) {
 	
 	if(typeof(tablesWithNextTables.value) === 'undefined' || tablesWithNextTables.value === undefined || tablesWithNextTables.value === null){
@@ -228,10 +287,17 @@ var loadForeignKeysAsync = function(db, tablesWithNextTables) {
 }
 
 
+/**
+ * log 
+ */
 DbPool.log = function(message){
 	DbPool.logger.log('[dbPool] - ' + message);
 }
 
+
+/**
+ * dropTable 
+ */
 DbPool.dropTable = function(orm, tableWithNextTables) {
 	
 	if(typeof(tableWithNextTables) === 'undefined' || tableWithNextTables === undefined || tableWithNextTables === null){
@@ -267,12 +333,20 @@ DbPool.dropTable = function(orm, tableWithNextTables) {
 	  });
 }
 
+
+/**
+ * dropTables 
+ */
 DbPool.dropTables = function(orm, callback) {
 	DbPool.logger.logSection("dropping database tables in schema [" + orm.schema + "]");
 	var tableWithNextTables = DbPool.getRepeatedActionMap(DbPool.entities, callback, true);
 	DbPool.dropTable(orm, tableWithNextTables);
 }
 
+
+/**
+ * getRepeatedActionMap 
+ */
 DbPool.getRepeatedActionMap = function(items, finalCallback, reverse){
 	var item = null;
 	
@@ -301,44 +375,6 @@ DbPool.getRepeatedActionMap = function(items, finalCallback, reverse){
 	}
 	
 	return item;
-}
-
-
-/**
- * DbPool.registerOrm 
- */
-DbPool.registerOrm = function(orm) {
-	
-	if(orm.dropDatabase !== undefined && orm.dropDatabase !== null && orm.dropDatabase === true){
-		DbPool.dropTables(orm, DbPool.registerOrm);
-	}else{
-		var entities = [];
-		
-		for (var i = 0; i < DbPool.entities.length; i++) {
-			DbPool.log('loading ' + DbPool.entities[i]);
-			var entity = require('./entities/' + DbPool.entities[i] + 'Entity.js');
-			var model = entity.define(orm);
-			entities.push(entity);
-		}
-		
-		DbPool.logger.logSection('DB SYNC');
-		orm.sync(function(err) {
-			if (err) {
-				DbPool.log('DB Sync err: ' + err);
-			} else {
-				
-				var tablesWithNextTables = DbPool.getRepeatedActionMap(entities, function(){DbPool.log('End db sync.');});
-				
-				if(tablesWithNextTables === null){
-					DbPool.log('!tablesWithNextTablesString was null ' + entities.length);
-				}else{
-					loadForeignKeysAsync(orm, tablesWithNextTables);
-				}
-			}
-		});
-	}
-
-
 }
 
 try {

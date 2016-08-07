@@ -21,20 +21,22 @@ var express = require('express');
 var router = express();
 var bodyParser = require('body-parser');
 
+
+
 router.use(bodyParser.urlencoded({
 	extended : true
 }));
 router.use(bodyParser.json());
 
-var server = null;
-var secureServer = null;
-var secureServerErr = null;
 
 
 //////////////////////////
 //BEGIN SSL///
 //////////////////////////
 logger.logSection('SSL');
+
+var server = null;
+var secureServer = null;
 
 var https = null;
 var useHttpsTemp = process.env.HTTPS || null;
@@ -80,6 +82,47 @@ if (useHttps === true && https != null) {
 
 
 
+
+
+
+
+//////////////////////////
+//BEGIN SOCKET IO///
+//////////////////////////
+logger.logSection('SOCKET.IO');
+var socketio = require('socket.io');
+var socketHub = require('./client/app/socketHub.js');
+var chatter = require('./client/app/chatter.js');
+
+
+var socketIO_OnConnectionProvider = null;
+socketIO_OnConnectionProvider = socketHub;
+
+var socketIOconnectionData = {};
+socketIOconnectionData.async = async;
+socketIOconnectionData.children = [];
+socketIOconnectionData.children.push(chatter);
+socketIO_OnConnectionProvider.init(socketIOconnectionData);
+
+if(useHttps === true && secureServer != null){
+	logger.log('socket.io listening over https');
+    socketio.listen(secureServer).on('connection', socketIO_OnConnectionProvider.onConnection);
+}
+else{
+    if(server === undefined || server === null){
+        server = http.createServer(router);
+    }
+    logger.log('socket.io listening over http');
+    socketio.listen(server).on('connection', socketIO_OnConnectionProvider.onConnection);
+}
+//////////////////////////
+//END SOCKET IO///
+//////////////////////////
+
+
+
+
+
 //////////////////////////
 //BEGIN MIDDLEWARE///
 //////////////////////////
@@ -104,7 +147,7 @@ function interceptApiRequests(req, res, next) {
 	var host = req.get('host');
 
 	if (req.url !== undefined && req.url !== null && req.url.startsWith('/api/')) {
-		logger.log('API CALL -> HOST: ' + host);
+		logger.log('API CALL -> ' + (useHttps === true ? 'https://' : 'http://') + host + req.url+'');
 	}else{
 		//logger.log('NON-API CALL -> HOST: ' + req.url);
 	}
@@ -180,7 +223,17 @@ apiRoot.register(router);
 router.get('/api/init-db', function(req, res) {
 	logger.log('######################/api/init-db');
 	try {
-		dbPool.resetSchema('ncidence');
+		dbPool.resetSchema('ncidence',function(err){
+			if(err){
+				res.status(200).json({
+					err : 'error: ' + err
+				});
+			}else{
+				res.status(200).json({
+					msg : 'success'
+				});
+			}
+		});
 	} catch (ex) {
 		res.status(200).json({
 			err : 'mysql connection error: ' + ex
@@ -210,7 +263,6 @@ if (secureServer != null) {
 				});
 	} catch (err2) {
 		logger.log("Err: " + err2);
-		secureServerErr = "Err: " + err2;
 	}
 }
 

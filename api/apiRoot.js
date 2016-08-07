@@ -6,6 +6,10 @@ ApiRoot.dbPool = null;
 ApiRoot.schema = null;
 ApiRoot.logger = null;
 
+
+/**
+ * ApiRoot.init
+ */
 ApiRoot.init = function(data){
     ApiRoot.dbPool = data.dbPool;
     ApiRoot.schema = data.schema;
@@ -14,26 +18,35 @@ ApiRoot.init = function(data){
     ApiRoot.logger.log("ApiRoot - starting...");
 };
 
+
+
+/**
+ * ApiRoot.register
+ */
 ApiRoot.register = function (router) {
     ApiRoot.logger.log("ApiRoot - registering endpoints...");
     
     ApiRoot.logger.log("ApiRoot - /api/db");
+    
+    
+    /**
+     * /api/db
+     */
     router.get('/api/db', function(req, res) {
-	ApiRoot.logger.log('#####################/api/db');
-
+	
 		var callback= function(db){
 			try{
 				db.query('SHOW DATABASES', function(err, rows) {
-        			if (err) {
-        				res.status(200).json({
-        					error : 'Error while listing DBs: ' + err
-        				});
-        			} else {
-        				res.status(200).json({
-        					rows : rows
-        				});
-        			}
-        		});
+	    			if (err) {
+	    				res.status(200).json({
+	    					error : 'Error while listing DBs: ' + err
+	    				});
+	    			} else {
+	    				res.status(200).json({
+	    					rows : rows
+	    				});
+	    			}
+	    		});
 			}catch(ex){
 				
 				ApiRoot.dbPool.resetSchema(ApiRoot.schema);
@@ -43,7 +56,7 @@ ApiRoot.register = function (router) {
 	    		});
 			}
 		}
-		
+			
 		ApiRoot.dbPool.getConnection(ApiRoot.schema, callback);
     		
     });
@@ -52,8 +65,10 @@ ApiRoot.register = function (router) {
     
     
     ApiRoot.logger.log("ApiRoot - /api/db2");
+    /**
+     * /api/db2
+     */
     router.get('/api/db2', function(req, res) {
-	ApiRoot.logger.log('#####################/api/db2');
 
 		var callback= function(db){
 			try{
@@ -85,8 +100,10 @@ ApiRoot.register = function (router) {
     
     
     ApiRoot.logger.log("ApiRoot - /api/tables");
+    /**
+     * /api/tables
+     */
     router.get('/api/tables', function(req, res) {
-	ApiRoot.logger.log('#####################/api/tables');
 
 		var callback= function(db){
 			try{
@@ -135,6 +152,9 @@ ApiRoot.register = function (router) {
 
     
     ApiRoot.logger.log("ApiRoot - /api/guid");
+    /**
+     * /api/guid
+     */
     router.get('/api/guid', function(req, res) {
     	res.status(200).json({
     		guid : ApiRoot.guid.generate(req.query.useDashes)
